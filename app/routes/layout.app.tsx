@@ -3,6 +3,12 @@ import type { Route } from "./+types/layout.app";
 import { Sidebar } from "~/components/sidebar";
 import { DevUI } from "~/components/dev-ui";
 import { Toaster } from "sonner";
+import {
+  NotificationPrototype,
+  PrototypeSidebarHeaderSlot,
+  PrototypeSidebarNavSlot,
+  PrototypeMainTopSlot,
+} from "~/components/notification-bell.prototype";
 import { getCurrentUserId, getDevCountry } from "~/lib/session";
 import { getCountryTierInfo, COUNTRIES } from "~/lib/ppp";
 import { eq, and, or, sql, desc } from "drizzle-orm";
@@ -17,6 +23,7 @@ import {
   teamMembers,
   TeamMemberRole,
   LessonProgressStatus,
+  UserRole,
 } from "~/db/schema";
 
 function getAllUsers() {
@@ -227,14 +234,20 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
     isTeamAdmin: userIsTeamAdmin,
   } = loaderData;
 
-  return (
+  // PROTOTYPE: the bell is Student-only, matching "only Students get Notifications".
+  const isStudent = currentUser?.role === UserRole.Student;
+
+  const shell = (
     <div className="flex h-screen overflow-hidden">
       <Sidebar
         currentUser={currentUser}
         recentCourses={recentCourses}
         isTeamAdmin={userIsTeamAdmin}
+        headerSlot={isStudent ? <PrototypeSidebarHeaderSlot /> : null}
+        navSlot={isStudent ? <PrototypeSidebarNavSlot /> : null}
       />
       <main className="flex-1 overflow-y-auto">
+        {isStudent && <PrototypeMainTopSlot />}
         <Outlet />
       </main>
       <DevUI
@@ -246,5 +259,15 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
       />
       <Toaster position="bottom-right" richColors closeButton />
     </div>
+  );
+
+  if (!isStudent) return shell;
+  return (
+    <NotificationPrototype
+      key={currentUser.id}
+      courses={recentCourses.map((c) => ({ title: c.title, slug: c.slug }))}
+    >
+      {shell}
+    </NotificationPrototype>
   );
 }
