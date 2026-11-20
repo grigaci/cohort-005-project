@@ -72,6 +72,8 @@ async function seed() {
 
   // Drop and recreate tables for a clean seed
   sqlite.exec(`
+    DROP TABLE IF EXISTS bookmarks;
+    DROP TABLE IF EXISTS notes;
     DROP TABLE IF EXISTS comments;
     DROP TABLE IF EXISTS course_ratings;
     DROP TABLE IF EXISTS video_watch_events;
@@ -2805,6 +2807,36 @@ This course is still in draft while the cluster examples are rewritten against t
 
   console.log("Created Marta's Refund Request on her Team Licence.");
 
+  // ─── Liam's Bookmarks and Notes ───
+  // Liam is enrolled on course 1, so /saved has something to show.
+
+  db.insert(schema.bookmarks)
+    .values([
+      { userId: liam.id, lessonId: course1LessonIds[1], createdAt: daysAgo(7) },
+      { userId: liam.id, lessonId: course1LessonIds[3], createdAt: daysAgo(2) },
+    ])
+    .run();
+  db.insert(schema.notes)
+    .values([
+      {
+        userId: liam.id,
+        lessonId: course1LessonIds[0],
+        body: "Setup was quick.\nCome back to the tsconfig flags.",
+        createdAt: daysAgo(8),
+        updatedAt: daysAgo(8),
+      },
+      {
+        userId: liam.id,
+        lessonId: course1LessonIds[3],
+        body: "Not sure why *this* narrows and the other one doesn't.",
+        createdAt: daysAgo(3),
+        updatedAt: daysAgo(2),
+      },
+    ])
+    .run();
+
+  console.log("Created Liam's Bookmarks and Notes.");
+
   // ─── Flush watch events ───
   // Batched: the heartbeat makes these by far the largest table, and one
   // statement per row would dominate the seed's runtime.
@@ -2847,6 +2879,9 @@ This course is still in draft while the cluster examples are rewritten against t
   console.log(`  Enrollments: ${countRows(schema.enrollments)}`);
   console.log(`  Course ratings: ${countRows(schema.courseRatings)}`);
   console.log(`  Lesson comments: ${countRows(schema.comments)}`);
+  console.log(
+    `  Bookmarks: ${countRows(schema.bookmarks)}, notes: ${countRows(schema.notes)}`
+  );
   console.log(
     `  Lesson progress: ${countRows(schema.lessonProgress)} (${countRows(schema.lessonProgress, eq(schema.lessonProgress.status, LessonProgressStatus.Completed))} completed)`
   );
