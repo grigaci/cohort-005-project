@@ -1,6 +1,7 @@
 import { db } from "~/db";
 import {
   getLessonThread,
+  isCommentOnLesson,
   renderThread,
   type Db,
 } from "./lib/lesson-discussion";
@@ -19,6 +20,13 @@ export function createLessonDiscussion(database: Db) {
      */
     thread(lessonId: number) {
       return renderThread(getLessonThread(database, lessonId));
+    },
+    /**
+     * Whether the comment belongs to the Lesson, so an id posted to one
+     * Lesson's route can't reach a comment on another.
+     */
+    hasComment(lessonId: number, commentId: number) {
+      return isCommentOnLesson(database, commentId, lessonId);
     },
   };
 }

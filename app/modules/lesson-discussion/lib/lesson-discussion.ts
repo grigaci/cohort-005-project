@@ -1,5 +1,5 @@
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import * as schema from "~/db/schema";
 import {
   comments,
@@ -67,6 +67,15 @@ function selectThreadRows(db: Db, lessonId: number) {
     .where(eq(comments.lessonId, lessonId))
     .orderBy(asc(comments.createdAt), asc(comments.id))
     .all();
+}
+
+export function isCommentOnLesson(db: Db, commentId: number, lessonId: number) {
+  const comment = db
+    .select({ id: comments.id })
+    .from(comments)
+    .where(and(eq(comments.id, commentId), eq(comments.lessonId, lessonId)))
+    .get();
+  return comment !== undefined;
 }
 
 export function getLessonThread(db: Db, lessonId: number): ThreadComment[] {

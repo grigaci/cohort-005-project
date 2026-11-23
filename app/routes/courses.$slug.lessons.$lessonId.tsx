@@ -19,14 +19,7 @@ import { isBookmarked, toggleBookmark } from "~/lib/bookmarks.server";
 import { getNote, saveNote } from "~/lib/notes.server";
 import { MAX_NOTE_LENGTH } from "~/lib/notes";
 import { db } from "~/db";
-import {
-  categories,
-  comments,
-  courses,
-  lessons,
-  modules,
-  users,
-} from "~/db/schema";
+import { categories, courses, lessons, modules, users } from "~/db/schema";
 import { eq, or } from "drizzle-orm";
 import { Button } from "~/components/ui/button";
 import { AlertTriangle } from "lucide-react";
@@ -155,10 +148,6 @@ const INTENT_CAPABILITY: Record<string, Capability | undefined> = {
 
 function getUserById(id: number) {
   return db.select().from(users).where(eq(users.id, id)).get();
-}
-
-function getCommentById(commentId: number) {
-  return db.select().from(comments).where(eq(comments.id, commentId)).get();
 }
 
 export function meta({ loaderData }: Route.MetaArgs) {
@@ -439,8 +428,7 @@ export async function action({ params, request }: Route.ActionArgs) {
         }
         // Scope the id to this lesson so a comment elsewhere can't be reached
         // by posting its id to this route.
-        const existing = getCommentById(parsed.data.commentId);
-        if (!existing || existing.lessonId !== lessonId) {
+        if (!lessonDiscussion.hasComment(lessonId, parsed.data.commentId)) {
           throw data("Comment not found", { status: 404 });
         }
         const edited = editComment(
@@ -458,8 +446,7 @@ export async function action({ params, request }: Route.ActionArgs) {
       if (!parsed.success) {
         return { ok: false, error: "Could not delete that comment." };
       }
-      const existing = getCommentById(parsed.data.commentId);
-      if (!existing || existing.lessonId !== lessonId) {
+      if (!lessonDiscussion.hasComment(lessonId, parsed.data.commentId)) {
         throw data("Comment not found", { status: 404 });
       }
       // Anyone who can view may delete their own posts; moderating someone

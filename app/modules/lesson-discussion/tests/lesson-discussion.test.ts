@@ -154,3 +154,21 @@ describe("thread", () => {
     expect(comment.replies).toEqual([]);
   });
 });
+
+// ─── Has comment ───
+
+describe("hasComment", () => {
+  it("is true for a comment on the Lesson", () => {
+    const comment = addComment("Question");
+    expect(discussion.hasComment(lessonId, comment)).toBe(true);
+  });
+
+  it("is false for a comment on another Lesson", () => {
+    const comment = addComment("Question");
+    expect(discussion.hasComment(lessonId + 1, comment)).toBe(false);
+  });
+
+  it("is false for a comment that does not exist", () => {
+    expect(discussion.hasComment(lessonId, 999)).toBe(false);
+  });
+});
