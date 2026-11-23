@@ -1,5 +1,5 @@
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import * as schema from "~/db/schema";
 import { QuestionType } from "~/db/schema";
 import {
@@ -27,14 +27,25 @@ export function getQuizWithQuestions(db: Db, quizId: number) {
     .orderBy(quizQuestions.position)
     .all();
 
-  const questionsWithOptions = questions.map((question) => {
-    const options = db
-      .select()
-      .from(quizOptions)
-      .where(eq(quizOptions.questionId, question.id))
-      .all();
-    return { ...question, options };
-  });
+  const options =
+    questions.length > 0
+      ? db
+          .select()
+          .from(quizOptions)
+          .where(
+            inArray(
+              quizOptions.questionId,
+              questions.map((question) => question.id)
+            )
+          )
+          .orderBy(quizOptions.id)
+          .all()
+      : [];
+
+  const questionsWithOptions = questions.map((question) => ({
+    ...question,
+    options: options.filter((option) => option.questionId === question.id),
+  }));
 
   return { ...quiz, questions: questionsWithOptions };
 }
@@ -73,30 +84,21 @@ export type QuizSubmission = {
   selectedAnswers: Record<number, number>;
 };
 
-type Question = typeof quizQuestions.$inferSelect;
+type Question = typeof quizQuestions.$inferSelect & {
+  options: Array<typeof quizOptions.$inferSelect>;
+};
 
-function correctOptionIdFor(db: Db, question: Question) {
+function correctOptionIdFor(question: Question) {
   if (
     question.questionType !== QuestionType.MultipleChoice &&
     question.questionType !== QuestionType.TrueFalse
   ) {
     return null;
   }
-  const correctOption = db
-    .select()
-    .from(quizOptions)
-    .where(
-      and(
-        eq(quizOptions.questionId, question.id),
-        eq(quizOptions.isCorrect, true)
-      )
-    )
-    .get();
-  return correctOption ? correctOption.id : null;
+  return question.options.find((option) => option.isCorrect)?.id ?? null;
 }
 
 function gradeQuestion(
-  db: Db,
   question: Question,
   selected: number | undefined
 ): QuestionResult {
@@ -108,7 +110,7 @@ function gradeQuestion(
       correctOptionId: null,
     };
   }
-  const correctOptionId = correctOptionIdFor(db, question);
+  const correctOptionId = correctOptionIdFor(question);
   return {
     questionId: question.id,
     correct: selected === correctOptionId,
@@ -151,21 +153,15 @@ function recordAttempt(
 export function submitQuizAttempt(db: Db, submission: QuizSubmission) {
   const { quizId, selectedAnswers } = submission;
   try {
-    const quiz = db.select().from(quizzes).where(eq(quizzes.id, quizId)).get();
+    const quiz = getQuizWithQuestions(db, quizId);
     if (!quiz) {
       console.error("quiz not found");
       return null;
     }
-
-    const questions = db
-      .select()
-      .from(quizQuestions)
-      .where(eq(quizQuestions.quizId, quizId))
-      .orderBy(quizQuestions.position)
-      .all();
+    const { questions } = quiz;
 
     const questionResults = questions.map((question) =>
-      gradeQuestion(db, question, selectedAnswers[question.id])
+      gradeQuestion(question, selectedAnswers[question.id])
     );
     const correct = questionResults.filter((result) => result.correct).length;
     const total = questions.length;
