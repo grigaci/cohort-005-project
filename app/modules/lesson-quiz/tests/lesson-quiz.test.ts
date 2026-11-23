@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { createTestDb, seedBaseData, type TestDb } from "~/test/setup";
 import * as schema from "~/db/schema";
 import { QuestionType } from "~/db/schema";
+import { eq } from "drizzle-orm";
 import { createLessonQuiz } from "../index.server";
 
 let db: TestDb;
@@ -220,6 +221,29 @@ describe("submit", () => {
     });
 
     expect(result).toMatchObject({ score: 0, passed: false, grade: "F" });
+  });
+
+  it("marks an answer wrong when the question has no correct option", () => {
+    const created = addQuiz();
+    const { question, wrong } = addQuestion(created.id, 1);
+    db.delete(schema.quizOptions)
+      .where(eq(schema.quizOptions.isCorrect, true))
+      .run();
+
+    const result = quiz.submit({
+      userId: studentId,
+      quizId: created.id,
+      selectedAnswers: { [question.id]: wrong.id },
+    });
+
+    expect(result?.questionResults).toEqual([
+      {
+        questionId: question.id,
+        correct: false,
+        selectedOptionId: wrong.id,
+        correctOptionId: null,
+      },
+    ]);
   });
 
   it("needs more than 70% to pass", () => {
