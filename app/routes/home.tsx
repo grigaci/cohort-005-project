@@ -162,15 +162,13 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   <ArrowRight className="ml-2 size-4" />
                 </Link>
               </Button>
-              {currentUser ? (
-                <Button asChild size="lg" variant="outline">
+              <Button asChild size="lg" variant="outline">
+                {currentUser ? (
                   <Link to="/dashboard">Go to your dashboard</Link>
-                </Button>
-              ) : (
-                <Button asChild size="lg" variant="outline">
+                ) : (
                   <Link to="/signup">Create a free account</Link>
-                </Button>
-              )}
+                )}
+              </Button>
             </div>
           </div>
 
@@ -231,7 +229,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   <CardFooter className="flex items-center justify-between text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <User className="size-3" />
-                      {course.instructorName ?? "Instructor"}
+                      {course.instructorName}
                     </span>
                     <span className="flex items-center gap-1">
                       <BookOpen className="size-3" />
