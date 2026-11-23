@@ -16,7 +16,7 @@ beforeEach(() => {
 });
 
 // ─── Fixtures ───
-// Courses, Lessons, Categories and Users are written outside this module, so
+// Courses, Lessons, Categories and People are written outside this module, so
 // rows go in directly. Kept here so a schema change touches only this block.
 
 function addCourse(
@@ -25,6 +25,7 @@ function addCourse(
     status?: CourseStatus;
     createdAt?: string;
     instructorId?: number;
+    categoryId?: number;
   } = {}
 ) {
   return db
@@ -36,7 +37,7 @@ function addCourse(
       salesCopy: markdown(slug),
       status: options.status ?? CourseStatus.Published,
       instructorId: options.instructorId ?? base.instructor.id,
-      categoryId: base.category.id,
+      categoryId: options.categoryId ?? base.category.id,
       createdAt: options.createdAt,
     })
     .returning()
@@ -56,6 +57,14 @@ function addLessons(courseId: number, count: number) {
   }
 }
 
+function addCategory(slug: string) {
+  return db
+    .insert(schema.categories)
+    .values({ name: slug, slug })
+    .returning()
+    .get().id;
+}
+
 function addInstructor(email: string) {
   return db
     .insert(schema.users)
@@ -69,16 +78,28 @@ describe("catalogStats", () => {
     addLessons(base.course.id, 2);
     const other = addCourse("other", { instructorId: addInstructor("b@x.io") });
     addLessons(other, 3);
-    db.insert(schema.categories)
-      .values({ name: "Design", slug: "design" })
-      .run();
 
     expect(landing.catalogStats()).toEqual({
       courses: 2,
       lessons: 5,
       instructors: 2,
-      categories: 2,
+      categories: 1,
     });
+  });
+
+  it("counts only categories that hold a Published course", () => {
+    const design = addCategory("design");
+    addCategory("empty");
+    addCourse("draft-design", {
+      status: CourseStatus.Draft,
+      categoryId: design,
+    });
+
+    expect(landing.catalogStats().categories).toBe(1);
+
+    addCourse("published-design", { categoryId: design });
+
+    expect(landing.catalogStats().categories).toBe(2);
   });
 
   it("leaves out Draft and Archived courses and their lessons", () => {

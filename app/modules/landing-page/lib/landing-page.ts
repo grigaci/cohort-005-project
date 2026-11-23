@@ -1,14 +1,7 @@
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { countDistinct, desc, eq, inArray, sql } from "drizzle-orm";
 import * as schema from "~/db/schema";
-import {
-  categories,
-  courses,
-  CourseStatus,
-  lessons,
-  modules,
-  users,
-} from "~/db/schema";
+import { courses, CourseStatus, lessons, modules, users } from "~/db/schema";
 
 export type Db = BetterSQLite3Database<typeof schema>;
 
@@ -19,6 +12,7 @@ export function getCatalogStats(db: Db) {
     .select({
       courses: countDistinct(courses.id),
       instructors: countDistinct(courses.instructorId),
+      categories: countDistinct(courses.categoryId),
     })
     .from(courses)
     .where(published)
@@ -32,16 +26,11 @@ export function getCatalogStats(db: Db) {
     .where(published)
     .get();
 
-  const categoryCount = db
-    .select({ count: sql<number>`count(*)` })
-    .from(categories)
-    .get();
-
   return {
     courses: catalog?.courses ?? 0,
     lessons: lessonCount?.count ?? 0,
     instructors: catalog?.instructors ?? 0,
-    categories: categoryCount?.count ?? 0,
+    categories: catalog?.categories ?? 0,
   };
 }
 
